@@ -1,0 +1,74 @@
+Without speedPID. Working ok:
+anglePIDAggKp: 4160
+anglePIDAggKi: 1339
+anglePIDAggKd: 130
+anglePIDConKp: 1470
+anglePIDConKi: 860
+anglePIDConKd: 100
+anglePIDLowerLimit: 0
+motorPIDKp: 200
+motorPIDKi: 30
+motorPIDKd: 10
+anglePIDSampling: 7
+motorsPIDSampling: 20
+angleSensorSampling: 10
+motorSpeedSensorSampling: 16
+
+With speedPID. Working quite good.
+speedPIDKp: 90
+speedPIDKi: 165
+speedPIDKd: 0
+speedPidOutputLowerLimit: 300
+speedPidOutputHigherLimit: 300
+anglePIDAggKp: 4160
+anglePIDAggKi: 1339
+anglePIDAggKd: 130
+anglePIDConKp: 30
+anglePIDConKi: 10
+anglePIDConKd: 5127
+anglePIDLowerLimit: 0
+anglePIDSampling: 7
+motorsPIDSampling: 40
+angleSensorSampling: 10
+motorSpeedSensorSampling: 16
+
+speedPIDKp: 90
+speedPIDKi: 155
+speedPIDKd: 0
+
+
+// with faster sampling from motor encoders
+speedPIDKp: 10
+speedPIDKi: 1439
+speedPIDKd: 2
+speedPidOutputLowerLimit: 300
+speedPidOutputHigherLimit: 300
+anglePIDAggKp: 3260
+anglePIDAggKi: 1029
+anglePIDAggKd: 80
+anglePIDConKp: 30
+anglePIDConKi: 10
+anglePIDConKd: 5117
+anglePIDLowerLimit: 0
+anglePIDSampling: 10
+motorsPIDSampling: 20
+angleSensorSampling: 10
+motorSpeedSensorSampling: 10
+
+// youtube 2012-07-19
+speedPIDKp: 130
+speedPIDKi: 489
+speedPIDKd: 1
+speedPidOutputLowerLimit: 300
+speedPidOutputHigherLimit: 300
+anglePIDAggKp: 4160
+anglePIDAggKi: 1339
+anglePIDAggKd: 130
+anglePIDConKp: 30
+anglePIDConKi: 10
+anglePIDConKd: 5117
+anglePIDLowerLimit: 0
+anglePIDSampling: 10
+motorsPIDSampling: 20
+angleSensorSampling: 10
+motorSpeedSensorSampling: 10
