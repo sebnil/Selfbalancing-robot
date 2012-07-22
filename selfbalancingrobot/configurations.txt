@@ -1,4 +1,4 @@
-Without speedPID. Working ok:
+Utan speedPID. Balanserar ok:
 anglePIDAggKp: 4160
 anglePIDAggKi: 1339
 anglePIDAggKd: 130
@@ -14,7 +14,7 @@ motorsPIDSampling: 20
 angleSensorSampling: 10
 motorSpeedSensorSampling: 16
 
-With speedPID. Working quite good.
+Med speedPID. Fin.
 speedPIDKp: 90
 speedPIDKi: 165
 speedPIDKd: 0
@@ -37,7 +37,7 @@ speedPIDKi: 155
 speedPIDKd: 0
 
 
-// with faster sampling from motor encoders
+// snabbare hastighetsuppdatering från motorer
 speedPIDKp: 10
 speedPIDKi: 1439
 speedPIDKd: 2
@@ -61,6 +61,24 @@ speedPIDKi: 489
 speedPIDKd: 1
 speedPidOutputLowerLimit: 300
 speedPidOutputHigherLimit: 300
+anglePIDAggKp: 4160
+anglePIDAggKi: 1339
+anglePIDAggKd: 130
+anglePIDConKp: 30
+anglePIDConKi: 10
+anglePIDConKd: 5117
+anglePIDLowerLimit: 0
+anglePIDSampling: 10
+motorsPIDSampling: 20
+angleSensorSampling: 10
+motorSpeedSensorSampling: 10
+
+// 2012-02-22. with MovingAvarageFilter. much more stable. speedPIDKd much higher. documented with video.
+speedPIDKp: 310
+speedPIDKi: 188
+speedPIDKd: 6
+speedPidOutputLowerLimit: 1100
+speedPidOutputHigherLimit: 1100
 anglePIDAggKp: 4160
 anglePIDAggKi: 1339
 anglePIDAggKd: 130

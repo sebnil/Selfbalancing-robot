@@ -37,21 +37,15 @@ void updateMotorStatuses() {
     encodersMsg[i] = Wire.read();
   }
 
-  /*leftMotorPositionUnion.read_byte[3] = encodersMsg[0];
-   leftMotorPositionUnion.read_byte[2] = encodersMsg[1];
-   leftMotorPositionUnion.read_byte[1] = encodersMsg[2];
-   leftMotorPositionUnion.read_byte[0] = encodersMsg[3];
-   
-   rightMotorPositionUnion.read_byte[3] = encodersMsg[4];
-   rightMotorPositionUnion.read_byte[2] = encodersMsg[5];
-   rightMotorPositionUnion.read_byte[1] = encodersMsg[6];
-   rightMotorPositionUnion.read_byte[0] = encodersMsg[7];*/
-
   leftMotorSpeed = (float)encodersMsg[0]*-1;
   rightMotorSpeed = (float)encodersMsg[1];
 
-  leftMotorPIDInput = leftMotorSpeed;
-  rightMotorPIDInput = rightMotorSpeed;
+  motorSpeed = (leftMotorSpeed+rightMotorSpeed)/20;
+  //speedPIDInput = smooth(speedFIR.process(motorSpeed));
+  speedPIDInput = speedMovingAvarageFilter.process(speedFIR.process(motorSpeed));
+
+  /*leftMotorPIDInput = leftMotorSpeed;
+  rightMotorPIDInput = rightMotorSpeed;*/
 }
 void setMotorPIDSetpoint(int motor, double motorSpeed) {
   if (motor == 2)
@@ -133,29 +127,6 @@ void moveMotor(int motor, double speed) { // speed is a value in percentage 0-10
     }
   }
 }
-
-
-void debugMotorStatuses() {
-  /*Serial.print("lSpeed: ");
-   printFloat(leftMotorSpeed, 4);*/
-  Serial.print("lSetpoint: ");
-  printFloat(leftMotorPIDSetpoint, 4);
-  Serial.print("\tlInput: ");
-  printFloat(leftMotorPIDInput, 4);
-  Serial.print("\tlOutput: ");
-  printFloat(leftMotorPIDOutput, 4);
-
-  /*Serial.print("\trSpeed: ");
-   printFloat(rightMotorSpeed, 4);*/
-  Serial.print("rSetpoint: ");
-  printFloat(rightMotorPIDSetpoint, 4);
-  Serial.print("\trInput: ");
-  printFloat(rightMotorPIDInput, 4);
-  Serial.print("\trOutput: ");
-  printFloat(rightMotorPIDOutput, 4);
-  Serial.println();
-}
-
 
 
 

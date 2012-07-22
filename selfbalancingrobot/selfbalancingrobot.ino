@@ -1,23 +1,17 @@
-#include <PID_v1.h>
-#include <FreeSixIMU.h>
-#include <FIMU_ADXL345.h>
-#include <FIMU_ITG3200.h>
-#include <Wire.h>
-#include <math.h>
-#include <TimedAction.h>
+#include <PID_v1.h> //github.com/mwoodward/Arduino-PID-Library
+#include <FreeSixIMU.h> // imu. www.varesano.net/projects/hardware/FreeIMU#library
+#include <FIMU_ADXL345.h> // imu
+#include <FIMU_ITG3200.h> // imu
+#include <Wire.h> // for i2c
+#include <math.h> // where would we be without math?
+#include <TimedAction.h> // for updating sensors and debug
 #include <Button.h>        //github.com/JChristensen/Button
-#include <EEPROM.h>
-#include <avr/wdt.h>
-#include <SerialCommand.h>
-#include <FIR.h>
+#include <EEPROM.h> // for storing configuraion
+#include <avr/wdt.h> // watchdog
+#include <FIR.h>  //github.com/sebnil/FIR-filter-Arduino-Library
+#include <MovingAvarageFilter.h> //github.com/sebnil/Moving-Avarage-Filter--Arduino-Library-
 
-#define   GYR_Y                 4                              // Gyro Y (IMU pin #4)
-#define   ACC_Z                 2                              // Acc  Z (IMU pin #7)
-#define   ACC_X                 0                              // Acc  X
-
-#define FILTERTAPS 5
-
-
+// configure struct that is stored in eeprom and updated from the lcd console.
 struct Configure {
   word speedPIDKp;
   word speedPIDKi;
@@ -42,77 +36,89 @@ struct Configure {
 };
 Configure configuration;
 
-SerialCommand sCmd;     // The SerialCommand object
+//SerialCommand sCmd;     // The SerialCommand object
 
-boolean started = false;
+boolean started = false; // if the robot is started or not
 
+// these take care of the timing of things
 TimedAction debugTimedAction = TimedAction(200,debugEverything);
 TimedAction updateMotorStatusesTimedAction = TimedAction(20,updateMotorStatuses);
 TimedAction updateIMUSensorsTimedAction = TimedAction(20,updateIMUSensors);
 
+// button declarations
 Button startBtn(7, false, false, 20);
 Button stopBtn(6, false, false, 20);
 Button calibrateBtn(4, false, false, 20);
 
+// motor controller
 int pwm_a = 5;   //PWM control for motor outputs 1 and 2 is on digital pin 3
 int pwm_b = 11;  //PWM control for motor outputs 3 and 4 is on digital pin 11
 int dir_a = 12;  //direction control for motor outputs 1 and 2 is on digital pin 12
 int dir_b = 13;  //direction control for motor outputs 3 and 4 is on digital pin 13
 
+// imu variables
 float imuValues[6];
 float ypr[3];
 float roll;
 
+// motor speeds and calibrations
 float motorSpeed;
 float leftMotorSpeed;
 float rightMotorSpeed;
 float motor1Calibration = 1;
 float motor2Calibration = 1.4;
 
-
-/* PID variables */
+// PID variables
 double anglePIDSetpoint, anglePIDInput, anglePIDOutput;
 double speedPIDInput, speedPIDOutput, speedPIDSetpoint;
 
-//Specify the links and initial tuning parameters
+// The cascading PIDs. The tunings are updated from the code
 PID anglePID(&anglePIDInput, &anglePIDOutput, &anglePIDSetpoint, 0, 0, 0, REVERSE);
-PID speedPID(&speedPIDInput, &speedPIDOutput, &speedPIDSetpoint, 0.1, 0.005, 0.001, DIRECT);
+PID speedPID(&speedPIDInput, &speedPIDOutput, &speedPIDSetpoint, 0, 0, 0, DIRECT);
 
+// filters
 FIR rollFIR;
 FIR speedFIR;
+MovingAvarageFilter speedMovingAvarageFilter(20);
 
-// Set the FreeSixIMU object
+// Set the FreeSixIMU object. This handles the communcation to the IMU.
 FreeSixIMU sixDOF = FreeSixIMU();
 
 void setup() { 
   Serial.begin(57600);
   Serial.println("setup");
-  initSerialCommand();
+  //initSerialCommand();
 
-  loadConfig();
-
-  Wire.begin();
-
-  delay(5);
-  sixDOF.init(); //begin the IMU
-  delay(5);
-
-  pinMode(pwm_a, OUTPUT);  //Set control pins to be outputs
+  //Set control pins to be outputs
+  pinMode(pwm_a, OUTPUT);  
   pinMode(pwm_b, OUTPUT);
   pinMode(dir_a, OUTPUT);
   pinMode(dir_b, OUTPUT);
 
-  analogWrite(pwm_a, 0);  //set both motors to run at (100/255 = 39)% duty cycle (slow)
-  analogWrite(pwm_b, 0);
-
   digitalWrite(dir_a, LOW);
   digitalWrite(dir_b, HIGH);
 
-  //initMotorPIDs();
+  // stop the motors if they are running
+  stopMotors();
+
+  // load config from eeprom
+  loadConfig();
+
+  // init i2c and IMU
+  Wire.begin();
+  delay(5);
+  sixDOF.init(); //begin the IMU
+  delay(5);
+
+  // init PIDs
   initAnglePID();
   initSpeedPID();  
+  //initMotorPIDs();
+
+  // init the timers
   initTimedActions();
 
+  // init the filters
   float rollFIRcoef[FILTERTAPS] = 
   { 
     0.021, 0.096, 0.146, 0.096, 0.021          
@@ -125,7 +131,7 @@ void setup() {
   rollFIR.setGain(gain);
 
   float speedFIRcoef[FILTERTAPS] = { 
-    0.000, 0.0, 0.526, 0.0, 0.00              };
+    0.000, 0.0, 50.0, 0.0, 0.00                          };
   gain = 0;
   for (int i=0; i<FILTERTAPS; i++) {
     gain += speedFIRcoef[i];
@@ -133,6 +139,7 @@ void setup() {
   speedFIR.setCoefficients(speedFIRcoef);
   speedFIR.setGain(gain);
 
+  // set the watchdog to 2s (this will restart the arduino if it freezes)
   wdt_enable(WDTO_2S);
 }
 
@@ -174,8 +181,6 @@ void loop() {
 
   if (started) {
     // speed pid. input is wheel speed. output is angleSetpoint
-    motorSpeed = (leftMotorSpeed+rightMotorSpeed)/20;
-    speedPIDInput = speedFIR.process(motorSpeed);
     speedPID.Compute();
     anglePIDSetpoint = speedPIDOutput;
 
@@ -213,19 +218,20 @@ void loop() {
 
 
     // give motors new setpoints and update
-    /*setMotorPIDSetpoint(1, anglePIDOutput); // höger
-     setMotorPIDSetpoint(2, anglePIDOutput); // vänster*/
+    /*setMotorPIDSetpoint(1, anglePIDOutput); // pid control on right motor (not used since it is too slow)
+     setMotorPIDSetpoint(2, anglePIDOutput); // left */
+    //updateMotorPIDs(); 
     moveMotor(1, anglePIDOutput);
     moveMotor(2, anglePIDOutput);
-    //updateMotorPIDs(); 
+
   }
   else {
     moveMotor(1, 0);
     moveMotor(2, 0);      
   }
 
-  // read serial and do commands if requested
-  sCmd.readSerial();
+  // read serial and do commands if requested (commented since i could not get it working on Arduino Leonardo)
+  //sCmd.readSerial();
 
   // check buttons and do actions if released
   startBtn.read();
@@ -235,7 +241,7 @@ void loop() {
     saveConfig();
     debugConfiguration();
 
-    //initMotorPIDs();
+    //initMotorPIDs(); // pids on motors are too slow
     initAnglePID();
     initSpeedPID();
     initTimedActions();
@@ -255,6 +261,7 @@ void loop() {
   }
 }
 
+/* just debug functions. uncomment the debug information you want in debugEverything */
 void debugEverything() {
   //debugImu();
   //debugAnglePID();
@@ -262,15 +269,11 @@ void debugEverything() {
   //debugMotorSpeeds();
   //debugMotorCalibrations();
   //debugMotorSpeedCalibration();
-  debugChart();
-  Serial.println();
+  debugChart2();
+  //Serial.println();
 }
 
 void debugChart() {
-  /*Serial.print(anglePIDOutput*motor1Calibration);
-   Serial.print(",");
-   Serial.print(anglePIDOutput*motor2Calibration);
-   Serial.print(",");*/
   Serial.print(rightMotorSpeed);
   Serial.print(",");
   Serial.print(leftMotorSpeed);
@@ -288,6 +291,25 @@ void debugChart() {
   Serial.print(anglePIDOutput, 4);
   Serial.print(",");
   Serial.print(anglePIDSetpoint, 4);
+}
+
+void debugChart2() {
+  sendPlotData("rightMotorSpeed", rightMotorSpeed);
+  sendPlotData("leftMotorSpeed", leftMotorSpeed);
+  sendPlotData("motorSpeed", motorSpeed);
+  sendPlotData("speedPIDInput", speedPIDInput);
+  sendPlotData("speedPIDOutput", speedPIDOutput);
+  sendPlotData("speedPIDSetpoint", speedPIDSetpoint);
+  sendPlotData("anglePIDInput", anglePIDInput);
+  sendPlotData("anglePIDOutput", anglePIDOutput);
+  sendPlotData("anglePIDSetpoint", anglePIDSetpoint);
+}
+void sendPlotData(String seriesName, float data) {
+  Serial.print("{");
+  Serial.print(seriesName);
+  Serial.print(",T,");
+  Serial.print(data);
+  Serial.println("}");
 }
 
 void debugSensorValues() {
@@ -443,28 +465,6 @@ void debugConfiguration() {
   Serial.print("motorSpeedSensorSampling: ");
   Serial.println(configuration.motorSpeedSensorSampling);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
