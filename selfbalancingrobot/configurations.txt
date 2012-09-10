@@ -90,3 +90,22 @@ anglePIDSampling: 10
 motorsPIDSampling: 20
 angleSensorSampling: 10
 motorSpeedSensorSampling: 10
+
+// youtube 2012-02-27
+speedPIDKp: 380
+speedPIDKi: 208
+speedPIDKd: 0
+speedPidOutputLowerLimit: 1400
+speedPidOutputHigherLimit: 1400
+anglePIDAggKp: 5000
+anglePIDAggKi: 0
+anglePIDAggKd: 0
+anglePIDConKp: 3860
+anglePIDConKi: 1339
+anglePIDConKd: 130
+anglePIDLowerLimit: 800
+anglePIDSampling: 10
+motorsPIDSampling: 20
+angleSensorSampling: 10
+motorSpeedSensorSampling: 10
+
